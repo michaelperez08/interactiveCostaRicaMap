@@ -1,1 +1,1 @@
-# zoomableCostaRicaMap
+# interactiveCostaRicaMap
