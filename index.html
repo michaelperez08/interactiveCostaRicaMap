@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html>
 <meta charset="utf-8">
 <style>
   .background {
@@ -23,85 +24,173 @@
     fill: none;
     stroke: #fff;
   }
+
+  circle {
+    r: 2;
+    stroke: black;
+    stroke-width: 2px;
+    stroke-opacity: 1;
+  }
+
+  .pulse {
+    animation: shadow-pulse 1s infinite;
+  }
+
+  @keyframes shadow-pulse {
+    0% {
+      box-shadow: 0 0 0 0px rgba(0, 0, 0, 0.2);
+    }
+
+    100% {
+      box-shadow: 0 0 0 35px rgba(0, 0, 0, 0);
+    }
+  }
 </style>
 
 <body>
-  <script src="//d3js.org/d3.v3.min.js"></script>
-  <script src="//d3js.org/topojson.v1.min.js"></script>
   <script>
 
-    var width = 960,
-      height = 750,
-      active = d3.select(null);
+    var places = [
+      {
+        name: "Sarchi",
+        nam: "https://en.wikipedia.org/wiki/1_Gorkha_Rifles",
+        location: {
+          latitude: 10.091614,
+          longitude: -84.346247
+        }
+      },
+      {
+        name: "Alajuela",
+        nam: "https://en.wikipedia.org/wiki/3_Gorkha_Rifles",
+        location: {
+          latitude: 10.014304,
+          longitude: -84.211541
+        }
+      }
+      ,
+      {
+        name: "ADC Headquarters",
+        nam: "https://en.wikipedia.org/wiki/Gharwal_Rifles",
+        location: {
+          latitude: 9.931164,
+          longitude: -84.102570
+        }
+      },
+      {
+        name: "Pali la castellana",
+        nam: "https://en.wikipedia.org/wiki/Gharwal_Rifles",
+        location: {
+          latitude: 9.930346,
+          longitude: -84.082470
+        }
+      }
+    ];
 
-    var projection = d3.geo.mercator()
-      .scale(10000)
-      .center([-84.5, 10.1])
-      .translate([width / 2, height / 2]);
+    document.addEventListener("DOMContentLoaded", function () {
 
-    var path = d3.geo.path()
-      .projection(projection);
+      var width = 960,
+        height = 750,
+        active = d3.select(null);
 
-    var svg = d3.select("body").append("svg")
-      .attr("width", width)
-      .attr("height", height);
+      var projection = d3.geo.mercator()
+        .scale(10000)
+        .center([-84.5, 10.1])
+        .translate([width / 2, height / 2]);
 
-    svg.append("rect")
-      .attr("class", "background")
-      .attr("width", width)
-      .attr("height", height)
-      .on("click", reset);
+      var path = d3.geo.path()
+        .projection(projection);
 
-    var g = svg.append("g")
-      .style("stroke-width", "1.5px");
+      var svg = d3.select("body").append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
-    d3.json("provincias.json", function (error, cr) {
-      if (error) throw error;
+      svg.append("rect")
+        .attr("class", "background")
+        .attr("width", width)
+        .attr("height", height)
+        .on("click", reset);
 
-      console.log(cr);
+      var g = svg.append("g")
+        .style("stroke-width", "1.5px");
 
-      let states = cr.objects.provincias;
+      d3.json("provincias.json", function (error, cr) {
+        if (error) throw error;
 
-      g.selectAll("path")
-        .data(topojson.feature(cr, states).features)
-        .enter().append("path")
-        .attr("d", path)
-        .attr("class", "state")
-        .on("click", clicked);
+        console.log(cr);
 
-      g.append("path")
-        .datum(topojson.mesh(cr, states, function (a, b) { return a !== b; }))
-        .attr("class", "mesh")
-        .attr("d", path);
+        let states = cr.objects.provincias;
+
+        g.selectAll("path")
+          .data(topojson.feature(cr, states).features)
+          .enter().append("path")
+          .attr("d", path)
+          .attr("class", "state")
+          .on("click", clicked);
+
+        g.append("path")
+          .datum(topojson.mesh(cr, states, function (a, b) { return a !== b; }))
+          .attr("class", "mesh")
+          .attr("d", path);
+
+
+        //pins
+
+        g.selectAll(".pin")
+          .data(places)
+          .enter().append("circle", ".pin")
+          .html(
+            "<animate attributeType=\"SVG\" attributeName=\"r\" begin=\"0s\" dur=\"1.5s\" repeatCount=\"indefinite\" from=\"1px\" to=\"5px\"/>" +
+            "<animate attributeType=\"CSS\" attributeName=\"stroke-width\" begin=\"0s\"  dur=\"1.5s\" repeatCount=\"indefinite\" from=\"2px\" to=\"0px\" />" +
+            "<animate attributeType=\"CSS\" attributeName=\"opacity\" begin=\"0s\"  dur=\"1.5s\" repeatCount=\"indefinite\" from=\"1\" to=\"0\"/>")
+          .attr("r", 5)
+          .attr("title", (d) => { return d.name; })
+          .attr("transform", function (d) {
+            return "translate(" + projection([
+              d.location.longitude,
+              d.location.latitude
+            ]) + ")";
+          })
+          .on('mouseover', function (d) {
+            //console.log(d);
+          })
+          .on('click', function (d) {
+            console.log(d);
+          });
+      });
+
+      function clicked(d) {
+        if (active.node() === this) return reset();
+        active.classed("active", false);
+        active = d3.select(this).classed("active", true);
+
+        var bounds = path.bounds(d),
+          dx = bounds[1][0] - bounds[0][0],
+          dy = bounds[1][1] - bounds[0][1],
+          x = (bounds[0][0] + bounds[1][0]) / 2,
+          y = (bounds[0][1] + bounds[1][1]) / 2,
+          scale = .9 / Math.max(dx / width, dy / height),
+          translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+        g.transition()
+          .duration(750)
+          .style("stroke-width", 1.5 / scale + "px")
+          .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+      }
+
+      function reset() {
+        active.classed("active", false);
+        active = d3.select(null);
+
+        g.transition()
+          .duration(750)
+          .style("stroke-width", "1.5px")
+          .attr("transform", "");
+      }
     });
 
-    function clicked(d) {
-      if (active.node() === this) return reset();
-      active.classed("active", false);
-      active = d3.select(this).classed("active", true);
-
-      var bounds = path.bounds(d),
-        dx = bounds[1][0] - bounds[0][0],
-        dy = bounds[1][1] - bounds[0][1],
-        x = (bounds[0][0] + bounds[1][0]) / 2,
-        y = (bounds[0][1] + bounds[1][1]) / 2,
-        scale = .9 / Math.max(dx / width, dy / height),
-        translate = [width / 2 - scale * x, height / 2 - scale * y];
-
-      g.transition()
-        .duration(750)
-        .style("stroke-width", 1.5 / scale + "px")
-        .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
-    }
-
-    function reset() {
-      active.classed("active", false);
-      active = d3.select(null);
-
-      g.transition()
-        .duration(750)
-        .style("stroke-width", "1.5px")
-        .attr("transform", "");
-    }
-
   </script>
+  <script src="//d3js.org/d3.v3.min.js"></script>
+  <script src="//d3js.org/topojson.v1.min.js"></script>
+</body>
+
+</html>
